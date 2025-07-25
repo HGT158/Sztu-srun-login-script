@@ -1,5 +1,9 @@
 # SZTU 宿舍网络自动登录脚本
 
+> **最近校园网疑似新增了多设备共享检测，解决方案可以参考[这篇博客](https://www.cnblogs.com/aquawius/articles/16759604.html)，核心应该就是解决UA的问题和ttl检测，目前没有感知到深度包检测的存在。**
+> **需要自行编译LEDE代码，其中需要注意该博客代码有部分小错误，防火墙部分代码大于号（即>）开头的注释需要改为#开头，在重启防火墙前需要执行`ipset create nohttp hash:net`。**
+> ~~有这ban路由器的功夫不如想想办法提高一下贵校的网络质量😅~~
+
 > Reference: 这份代码偷自[北京理工大学深澜校园网登录python脚本](https://github.com/coffeehat/BIT-srun-login-script)并加以修改，在此感谢这位大佬的辛勤付出。
 
 > 为了解决 SZTU 北区研究生宿舍的校园网络无法使用路由器 PPPoE 自动登录、长时间无流量或超时会自动掉线的问题而抓包设计的 Python 脚本。
