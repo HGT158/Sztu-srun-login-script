@@ -228,5 +228,6 @@ class LoginManager:
     )
     def _resolve_login_responce(self):
         self._login_result = re.search(
-            '"ploy_msg":"(.*?)"', self._login_responce.text
+            r'"(?:ploy_msg|res|error|error_msg|suc_msg)":"(.*?)"',
+            self._login_responce.text,
         ).group(1)
