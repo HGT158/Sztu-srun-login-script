@@ -1,28 +1,14 @@
 # SZTU 宿舍网络自动登录脚本
 
-> 250726备注：最近校园网疑似新增了多设备共享检测，目前仅感知到了ttl检测。解决方法如下：
-> ~~有这ban路由器的功夫不如想想办法提高一下贵校的网络质量😅~~
-```shell
-# 使用 nftables 固定 TTL 为 64：
-nft add table inet ttl64
-nft add chain inet ttl64 postrouting { type filter hook postrouting priority -150\; policy accept\; }
-nft add rule inet ttl64 postrouting counter ip ttl set 64
+> Reference: 这份代码偷自[SZTU 宿舍网络自动登录脚本](https://github.com/AdamXuD/Sztu-srun-login-script)并加以修改，在此感谢这位大佬的辛勤付出。
 
-# 使用 iptables 固定 TTL 为 64：
-iptables -t mangle -A POSTROUTING -j TTL --ttl-set 64
-```
-
-> Reference: 这份代码偷自[北京理工大学深澜校园网登录python脚本](https://github.com/coffeehat/BIT-srun-login-script)并加以修改，在此感谢这位大佬的辛勤付出。
-
-> 为了解决 SZTU 北区研究生宿舍的校园网络无法使用路由器 PPPoE 自动登录、长时间无流量或超时会自动掉线的问题而抓包设计的 Python 脚本。
-> ~~这网络确实有点溺智~~
 
 ## 功能特点
 
+- Windows 图形界面客户端（开箱即用 exe）
 - 自动登录
 - 断线自动重连
 - 支持多运营商选择（联通 / 移动 / 电信 / 校园网）
-- Windows 图形界面客户端（开箱即用 exe）
 - 开机自启动
 - 支持容器化部署
 
@@ -30,7 +16,7 @@ iptables -t mangle -A POSTROUTING -j TTL --ttl-set 64
 
 ### 方式一：Windows 图形界面（推荐）
 
-直接运行 `dist/SZTU校园网登录助手/SZTU校园网登录助手.exe`，无需安装 Python 环境。
+直接运行 Release里面的`SZTU校园网登录助手.exe`，无需安装 Python 环境。
 
 1. 填写校园网账号、密码，选择运营商
 2. 点击「登 录」完成认证
