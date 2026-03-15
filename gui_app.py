@@ -20,14 +20,23 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QTextCursor, QIcon
 
-# Ensure the script directory is in path so SztuSrunLogin can be imported
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+# Determine base paths for PyInstaller compatibility
+if getattr(sys, 'frozen', False):
+    BUNDLE_DIR = sys._MEIPASS          # bundled resources (icon, modules)
+    SCRIPT_DIR = os.path.dirname(sys.executable)  # where the .exe lives
+else:
+    BUNDLE_DIR = os.path.dirname(os.path.abspath(__file__))
+    SCRIPT_DIR = BUNDLE_DIR
+
+if BUNDLE_DIR not in sys.path:
+    sys.path.insert(0, BUNDLE_DIR)
 
 from SztuSrunLogin.LoginManager import LoginManager
 
-CONFIG_FILE = os.path.join(SCRIPT_DIR, ".login_config.json")
+CONFIG_DIR = os.path.join(os.environ.get("APPDATA", SCRIPT_DIR), "SZTUCampusLogin")
+os.makedirs(CONFIG_DIR, exist_ok=True)
+CONFIG_FILE = os.path.join(CONFIG_DIR, ".login_config.json")
+ICON_PATH = os.path.join(BUNDLE_DIR, "icon.png")
 
 ISP_OPTIONS = [
     ("中国联通 (cucc)", "@cucc"),
@@ -248,6 +257,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("SZTU 校园网登录助手")
         self.setFixedSize(500, 660)
         self.setStyleSheet(STYLESHEET)
+        self.setWindowIcon(QIcon(ICON_PATH))
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -256,7 +266,7 @@ class MainWindow(QMainWindow):
         root.setSpacing(10)
 
         # ---------- Title ----------
-        title = QLabel("SZTU 校园网登录助手")
+        title = QLabel("SZTU 校园网登录助手—桂辰改进版")
         title.setAlignment(Qt.AlignCenter)
         title.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
         title.setStyleSheet("color: #1a73e8; margin-bottom: 2px;")
@@ -553,6 +563,7 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setFont(QFont("Microsoft YaHei", 10))
+    app.setWindowIcon(QIcon(ICON_PATH))
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
