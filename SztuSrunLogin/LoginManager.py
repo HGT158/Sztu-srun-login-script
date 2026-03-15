@@ -35,8 +35,8 @@ class LoginManager:
         self.ac_id = acid
         self.enc = enc
 
-    def login(self, username, password):
-        self.username = username + "@cucc"
+    def login(self, username, password, suffix="@cucc"):
+        self.username = username + suffix
         self.password = password
 
         self.get_ip()
