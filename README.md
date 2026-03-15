@@ -16,14 +16,16 @@
 
 ### 方式一：Windows 图形界面（推荐）
 
-直接运行 Release里面的`SZTU校园网登录助手.exe`，无需安装 Python 环境。
+下载并解压Releases的最新版本安装包  
+直接运行 里面的`SZTU校园网登录助手.exe`即可，无需安装 Python 环境。
 
 1. 填写校园网账号、密码，选择运营商
 2. 点击「登 录」完成认证
 3. 勾选「自动重连」并设置检测间隔（默认 300 秒），登录成功后自动监控网络，断线即重连
 4. 勾选「开机自启」可实现开机后自动在后台维持连接
 
-> 账号密码保存在本机 `%APPDATA%\SZTUCampusLogin\.login_config.json`，不会上传或泄露。
+> 账号密码保存在本机 `%APPDATA%\SZTUCampusLogin\.login_config.json`，不会上传或泄露。  
+> 首次运行可能出现 Windows SmartScreen 提示，点击「更多信息」→「仍要运行」即可，仅首次需要。
 
 ---
 
