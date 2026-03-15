@@ -154,11 +154,28 @@ class PingWorker(QThread):
         try:
             if platform.system().lower() == "windows":
                 cmd = ["ping", "-n", "4", "-w", "2000", self.testip]
+                # Hide the console window that ping.exe would otherwise open
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = 0  # SW_HIDE
+                result = subprocess.run(
+                    cmd,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=15,
+                    startupinfo=startupinfo,
+                    creationflags=0x08000000,  # CREATE_NO_WINDOW
+                )
             else:
                 cmd = ["ping", "-c", "4", "-W", "2", self.testip]
-            result = subprocess.run(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15
-            )
+                result = subprocess.run(
+                    cmd,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=15,
+                )
             self.result_signal.emit(result.returncode == 0)
         except Exception:
             self.result_signal.emit(False)
