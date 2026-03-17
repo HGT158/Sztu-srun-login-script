@@ -264,6 +264,7 @@ class MainWindow(QMainWindow):
         self._login_in_progress = False
 
         self._init_ui()
+        self._init_tray_icon()
         self._load_config()
 
     # ------------------------------------------------------------------ #
@@ -408,6 +409,42 @@ class MainWindow(QMainWindow):
 
         # Allow pressing Enter in password field to trigger login
         self.password_input.returnPressed.connect(self._on_login)
+
+    # ------------------------------------------------------------------ #
+    #  System Tray
+    # ------------------------------------------------------------------ #
+
+    def _init_tray_icon(self):
+        self.tray_icon = QSystemTrayIcon(QIcon(ICON_PATH), self)
+        self.tray_icon.setToolTip("SZTU 校园网登录助手")
+
+        tray_menu = QMenu()
+        show_action = QAction("显示主窗口", self)
+        show_action.triggered.connect(self._show_window)
+        tray_menu.addAction(show_action)
+
+        quit_action = QAction("退出", self)
+        quit_action.triggered.connect(self._quit_app)
+        tray_menu.addAction(quit_action)
+
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self._on_tray_activated)
+        self.tray_icon.show()
+
+    def _show_window(self):
+        self.showNormal()
+        self.activateWindow()
+
+    def _on_tray_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            self._show_window()
+
+    def _quit_app(self):
+        self._stop_auto_reconnect()
+        if self.remember_cb.isChecked():
+            self._save_config()
+        self.tray_icon.hide()
+        QApplication.instance().quit()
 
     # ------------------------------------------------------------------ #
     #  Logging & Status
@@ -571,10 +608,16 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def closeEvent(self, event):
-        self._stop_auto_reconnect()
         if self.remember_cb.isChecked():
             self._save_config()
-        event.accept()
+        self.hide()
+        self.tray_icon.showMessage(
+            "SZTU 校园网登录助手",
+            "程序已最小化到系统托盘，双击图标可恢复窗口",
+            QSystemTrayIcon.Information,
+            2000,
+        )
+        event.ignore()
 
 
 def main():
