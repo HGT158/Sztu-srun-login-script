@@ -91,7 +91,7 @@ class LoginManager:
     )
     def _resolve_ip_from_login_page(self):
         self.ip = re.search(
-            'ip\s*:\s*"(.*?)",[\s\n]*nas\s*:\s*"",', self._page_response.text
+            r'ip\s*:\s*"(.*?)",[\s\n]*nas\s*:\s*"",', self._page_response.text
         ).group(1)
 
     @checkvars(
@@ -104,7 +104,7 @@ class LoginManager:
         errorinfo="Failed to resolve acid",
     )
     def _resolve_acid_from_login_page(self):
-        self.ac_id = re.search('acid\s*:\s*"(.*?)",', self._page_response.text).group(1)
+        self.ac_id = re.search(r'acid\s*:\s*"(.*?)",', self._page_response.text).group(1)
 
     @checkip
     @infomanage(

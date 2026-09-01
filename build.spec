@@ -10,6 +10,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('icon.png', '.'),
+        ('down_arrow.png', '.'),
         ('SztuSrunLogin', 'SztuSrunLogin'),
     ],
     hiddenimports=[

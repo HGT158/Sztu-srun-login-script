@@ -1,5 +1,5 @@
 """
-SZTU 校园网登录助手 - 图形界面版
+SZTU 校园网登录助手 - 现代化极简图形界面版
 基于 Srun 深澜认证协议
 """
 
@@ -15,10 +15,10 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTextEdit, QCheckBox, QComboBox,
     QSpinBox, QGroupBox, QFormLayout, QFrame, QMessageBox,
-    QSystemTrayIcon, QMenu, QAction,
+    QSystemTrayIcon, QMenu, QAction, QToolButton, QSizePolicy,
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QTextCursor, QIcon
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
+from PyQt5.QtGui import QFont, QTextCursor, QIcon, QClipboard, QPainter, QPixmap
 
 # Determine base paths for PyInstaller compatibility
 if getattr(sys, 'frozen', False):
@@ -37,6 +37,7 @@ CONFIG_DIR = os.path.join(os.environ.get("APPDATA", SCRIPT_DIR), "SZTUCampusLogi
 os.makedirs(CONFIG_DIR, exist_ok=True)
 CONFIG_FILE = os.path.join(CONFIG_DIR, ".login_config.json")
 ICON_PATH = os.path.join(BUNDLE_DIR, "icon.png")
+ARROW_PATH = os.path.join(BUNDLE_DIR, "down_arrow.png").replace("\\", "/")
 
 ISP_OPTIONS = [
     ("中国联通 (cucc)", "@cucc"),
@@ -44,7 +45,6 @@ ISP_OPTIONS = [
     ("中国电信 (ctcc)", "@ctcc"),
     ("校园网 (无后缀)", ""),
 ]
-
 
 AUTOSTART_REG_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 AUTOSTART_REG_NAME = "SZTUCampusLogin"
@@ -153,8 +153,7 @@ class PingWorker(QThread):
     def run(self):
         try:
             if platform.system().lower() == "windows":
-                cmd = ["ping", "-n", "4", "-w", "2000", self.testip]
-                # Hide the console window that ping.exe would otherwise open
+                cmd = ["ping", "-n", "3", "-w", "1500", self.testip]
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                 startupinfo.wShowWindow = 0  # SW_HIDE
@@ -163,18 +162,18 @@ class PingWorker(QThread):
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=15,
+                    timeout=10,
                     startupinfo=startupinfo,
                     creationflags=0x08000000,  # CREATE_NO_WINDOW
                 )
             else:
-                cmd = ["ping", "-c", "4", "-W", "2", self.testip]
+                cmd = ["ping", "-c", "3", "-W", "2", self.testip]
                 result = subprocess.run(
                     cmd,
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=15,
+                    timeout=10,
                 )
             self.result_signal.emit(result.returncode == 0)
         except Exception:
@@ -182,76 +181,200 @@ class PingWorker(QThread):
 
 
 STYLESHEET = """
+/* 全局主窗口背景与基础字体 */
 QMainWindow {
-    background-color: #f5f5f5;
+    background-color: #f8fafc;
 }
-QGroupBox {
-    font-weight: bold;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    margin-top: 10px;
-    padding-top: 14px;
-    background-color: white;
+QWidget {
+    font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    color: #1e293b;
 }
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 12px;
-    padding: 0 6px;
+
+/* 卡片容器样式 */
+QFrame.CardFrame {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
 }
+
+/* 卡片标题 */
+QLabel.CardTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    padding-bottom: 2px;
+}
+
+/* 标签通用样式 */
+QLabel.FormLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* 输入框与选择器 */
 QLineEdit, QComboBox, QSpinBox {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 4px 8px;
-    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 5px 8px;
+    background-color: #ffffff;
+    font-size: 13px;
+    color: #0f172a;
+    selection-background-color: #1a73e8;
+}
+QLineEdit:hover, QComboBox:hover, QSpinBox:hover {
+    border-color: #94a3b8;
 }
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus {
+    border: 1.5px solid #1a73e8;
+    background-color: #ffffff;
+}
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+
+/* 下拉菜单样式与倒三角图标 */
+QComboBox {
+    padding-right: 22px;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 22px;
+    border-left-width: 0px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+QComboBox::down-arrow {
+    image: url({ARROW_PATH});
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+}
+QComboBox QAbstractItemView {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background-color: #ffffff;
+    selection-background-color: #eff6ff;
+    selection-color: #1a73e8;
+    padding: 4px;
+    outline: none;
+}
+
+/* 微调框样式 */
+QSpinBox::up-button, QSpinBox::down-button {
+    width: 16px;
+    background: transparent;
+    border: none;
+}
+
+/* 复选框样式 */
+QCheckBox {
+    font-size: 13px;
+    color: #334155;
+    spacing: 6px;
+}
+QCheckBox::indicator {
+    width: 15px;
+    height: 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background-color: #ffffff;
+}
+QCheckBox::indicator:hover {
     border-color: #1a73e8;
 }
+QCheckBox::indicator:checked {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+    image: none;
+}
+
+/* 主操作按钮：登录 */
 QPushButton#login_btn {
     background-color: #1a73e8;
-    color: white;
+    color: #ffffff;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
+    font-size: 14px;
     font-weight: bold;
+    padding: 8px 16px;
 }
 QPushButton#login_btn:hover {
     background-color: #1557b0;
 }
-QPushButton#login_btn:disabled {
-    background-color: #94c2f7;
+QPushButton#login_btn:pressed {
+    background-color: #0d47a1;
 }
+QPushButton#login_btn:disabled {
+    background-color: #bfdbfe;
+    color: #ffffff;
+}
+
+/* 次要操作按钮：停止 */
 QPushButton#stop_btn {
-    background-color: #e8e8e8;
-    color: #333;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    background-color: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 16px;
 }
 QPushButton#stop_btn:hover {
-    background-color: #d0d0d0;
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border-color: #94a3b8;
+}
+QPushButton#stop_btn:pressed {
+    background-color: #e2e8f0;
 }
 QPushButton#stop_btn:disabled {
-    color: #aaa;
+    background-color: #f8fafc;
+    color: #cbd5e1;
+    border-color: #f1f5f9;
 }
-QPushButton#clear_btn {
-    background-color: transparent;
-    color: #666;
-    border: 1px solid #ccc;
+
+/* 辅助小按钮（清空、复制） */
+QPushButton.SmallToolBtn {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
     border-radius: 4px;
     font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
 }
-QPushButton#clear_btn:hover {
-    background-color: #eee;
+QPushButton.SmallToolBtn:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
 }
-QTextEdit {
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background-color: #1e1e1e;
-    color: #d4d4d4;
+QPushButton.SmallToolBtn:pressed {
+    background-color: #cbd5e1;
 }
-QCheckBox {
-    spacing: 5px;
+
+/* 控制台日志文本框 */
+QTextEdit#log_text {
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    background-color: #0f172a;
+    color: #e2e8f0;
+    padding: 6px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.35;
 }
-"""
+
+/* 状态胶囊徽标基础 */
+QLabel.StatusBadge {
+    border-radius: 11px;
+    padding: 2px 9px;
+    font-size: 12px;
+    font-weight: 600;
+}
+""".replace("{ARROW_PATH}", ARROW_PATH)
 
 
 class MainWindow(QMainWindow):
@@ -273,149 +396,308 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self):
         self.setWindowTitle("SZTU 校园网登录助手")
-        self.setFixedSize(500, 660)
+        # 固定舒适的默认窗口尺寸
+        self.setFixedSize(480, 640)
         self.setStyleSheet(STYLESHEET)
-        self.setWindowIcon(QIcon(ICON_PATH))
+        if os.path.isfile(ICON_PATH):
+            self.setWindowIcon(QIcon(ICON_PATH))
 
         central = QWidget()
         self.setCentralWidget(central)
+
         root = QVBoxLayout(central)
-        root.setContentsMargins(24, 20, 24, 20)
+        root.setContentsMargins(16, 14, 16, 14)
         root.setSpacing(10)
 
-        # ---------- Title ----------
-        title = QLabel("SZTU 校园网登录助手—桂辰改进版")
-        title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
-        title.setStyleSheet("color: #1a73e8; margin-bottom: 2px;")
-        root.addWidget(title)
+        # ============================================================== #
+        #  Top Header Bar (Logo + Title + Status Badge)
+        # ============================================================== #
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(2, 0, 2, 0)
+        header_layout.setSpacing(10)
 
-        subtitle = QLabel("深圳技术大学 · Srun 认证客户端")
-        subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("color: #666; font-size: 12px; margin-bottom: 6px;")
-        root.addWidget(subtitle)
+        # Left: App Title & Subtitle
+        title_box = QVBoxLayout()
+        title_box.setSpacing(1)
 
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("color: #e0e0e0;")
-        root.addWidget(line)
+        title_lbl = QLabel("SZTU 校园网登录助手—桂辰改进版")
+        title_lbl.setFont(QFont("Segoe UI", 13, QFont.Bold))
+        title_lbl.setStyleSheet("color: #1a73e8; margin: 0px; padding: 0px;")
+        title_box.addWidget(title_lbl)
 
-        # ---------- Login form ----------
-        form_group = QGroupBox("登录信息")
-        form = QFormLayout()
-        form.setSpacing(10)
-        form.setContentsMargins(12, 18, 12, 12)
+        subtitle_lbl = QLabel("深圳技术大学 · Srun 认证客户端")
+        subtitle_lbl.setStyleSheet("color: #64748b; font-size: 11px;")
+        title_box.addWidget(subtitle_lbl)
 
+        header_layout.addLayout(title_box)
+        header_layout.addStretch()
+
+        # Right: Connection Status Badge (Pill)
+        self.status_badge = QLabel("● 未连接")
+        self.status_badge.setProperty("class", "StatusBadge")
+        self._set_status_badge("disconnected", "● 未连接")
+        header_layout.addWidget(self.status_badge, alignment=Qt.AlignVCenter)
+
+        root.addWidget(header_widget)
+
+        # ============================================================== #
+        #  Card 1: 登录凭据 (Authentication Card)
+        # ============================================================== #
+        auth_card = QFrame()
+        auth_card.setProperty("class", "CardFrame")
+        auth_layout = QVBoxLayout(auth_card)
+        auth_layout.setContentsMargins(14, 10, 14, 10)
+        auth_layout.setSpacing(8)
+
+        card1_title = QLabel("账号认证")
+        card1_title.setProperty("class", "CardTitle")
+        auth_layout.addWidget(card1_title)
+
+        form_layout = QFormLayout()
+        form_layout.setSpacing(8)
+        form_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        form_layout.setContentsMargins(0, 2, 0, 0)
+
+        # Username
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("请输入学号 / 工号")
         self.username_input.setMinimumHeight(32)
-        form.addRow("账　号:", self.username_input)
+        form_layout.addRow(self._create_form_label("账号:"), self.username_input)
+
+        # Password + Toggle Visibility Button
+        pwd_container = QWidget()
+        pwd_layout = QHBoxLayout(pwd_container)
+        pwd_layout.setContentsMargins(0, 0, 0, 0)
+        pwd_layout.setSpacing(4)
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("请输入密码")
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setMinimumHeight(32)
-        form.addRow("密　码:", self.password_input)
+        pwd_layout.addWidget(self.password_input)
 
+        self.pwd_toggle_btn = QToolButton()
+        self.pwd_toggle_btn.setText("显示")
+        self.pwd_toggle_btn.setCheckable(True)
+        self.pwd_toggle_btn.setCursor(Qt.PointingHandCursor)
+        self.pwd_toggle_btn.setStyleSheet("""
+            QToolButton {
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                background-color: #ffffff;
+                color: #64748b;
+                font-size: 11px;
+                padding: 6px 8px;
+            }
+            QToolButton:hover {
+                background-color: #f1f5f9;
+                color: #1e293b;
+            }
+            QToolButton:checked {
+                background-color: #eff6ff;
+                color: #1a73e8;
+                border-color: #93c5fd;
+            }
+        """)
+        self.pwd_toggle_btn.toggled.connect(self._toggle_password_visibility)
+        pwd_layout.addWidget(self.pwd_toggle_btn)
+
+        form_layout.addRow(self._create_form_label("密码:"), pwd_container)
+
+        # ISP Selector
         self.isp_combo = QComboBox()
         for label, _ in ISP_OPTIONS:
             self.isp_combo.addItem(label)
         self.isp_combo.setMinimumHeight(32)
-        form.addRow("运营商:", self.isp_combo)
+        form_layout.addRow(self._create_form_label("运营商:"), self.isp_combo)
 
-        self.server_input = QLineEdit("172.19.0.5")
-        self.server_input.setMinimumHeight(32)
-        form.addRow("服务器:", self.server_input)
+        auth_layout.addLayout(form_layout)
+        root.addWidget(auth_card)
 
-        form_group.setLayout(form)
-        root.addWidget(form_group)
+        # ============================================================== #
+        #  Card 2: 自动化与高级选项 (Options Card)
+        # ============================================================== #
+        opt_card = QFrame()
+        opt_card.setProperty("class", "CardFrame")
+        opt_layout = QVBoxLayout(opt_card)
+        opt_layout.setContentsMargins(14, 10, 14, 10)
+        opt_layout.setSpacing(8)
 
-        # ---------- Options ----------
-        opt_layout = QHBoxLayout()
-        opt_layout.setSpacing(10)
+        card2_title = QLabel("运行设置")
+        card2_title.setProperty("class", "CardTitle")
+        opt_layout.addWidget(card2_title)
+
+        # Row 1: Checkboxes
+        row1 = QHBoxLayout()
+        row1.setSpacing(16)
 
         self.remember_cb = QCheckBox("记住密码")
         self.remember_cb.setChecked(True)
-        opt_layout.addWidget(self.remember_cb)
+        self.remember_cb.setCursor(Qt.PointingHandCursor)
+        row1.addWidget(self.remember_cb)
 
         self.autostart_cb = QCheckBox("开机自启")
         self.autostart_cb.setChecked(is_autostart_enabled())
+        self.autostart_cb.setCursor(Qt.PointingHandCursor)
         self.autostart_cb.stateChanged.connect(self._on_autostart_changed)
-        opt_layout.addWidget(self.autostart_cb)
+        row1.addWidget(self.autostart_cb)
 
-        self.auto_reconnect_cb = QCheckBox("自动重连")
-        opt_layout.addWidget(self.auto_reconnect_cb)
+        row1.addStretch()
+        opt_layout.addLayout(row1)
 
-        opt_layout.addWidget(QLabel("间隔:"))
+        # Row 2: Auto-reconnect & interval
+        row2 = QHBoxLayout()
+        row2.setSpacing(8)
+
+        self.auto_reconnect_cb = QCheckBox("断线自动重连")
+        self.auto_reconnect_cb.setCursor(Qt.PointingHandCursor)
+        self.auto_reconnect_cb.toggled.connect(self._on_auto_reconnect_toggled)
+        row2.addWidget(self.auto_reconnect_cb)
+
+        row2.addSpacing(6)
+        interval_lbl = QLabel("间隔:")
+        interval_lbl.setStyleSheet("color: #64748b; font-size: 12px;")
+        row2.addWidget(interval_lbl)
+
         self.interval_spin = QSpinBox()
-        self.interval_spin.setRange(30, 3600)
+        self.interval_spin.setRange(10, 3600)
         self.interval_spin.setValue(300)
-        self.interval_spin.setSuffix(" 秒")
-        self.interval_spin.setMinimumWidth(100)
-        opt_layout.addWidget(self.interval_spin)
+        self.interval_spin.setMinimumHeight(28)
+        self.interval_spin.setFixedWidth(68)
+        self.interval_spin.setAlignment(Qt.AlignCenter)
+        self.interval_spin.setEnabled(False)  # default disabled until auto_reconnect checked
+        row2.addWidget(self.interval_spin)
 
-        opt_layout.addStretch()
-        root.addLayout(opt_layout)
+        self.sec_lbl = QLabel("秒")
+        self.sec_lbl.setStyleSheet("color: #64748b; font-size: 12px;")
+        self.sec_lbl.setEnabled(False)
+        row2.addWidget(self.sec_lbl)
 
-        # ---------- Buttons ----------
+        row2.addStretch()
+        opt_layout.addLayout(row2)
+
+        # Row 3: Server IP
+        row3 = QHBoxLayout()
+        row3.setSpacing(8)
+
+        server_lbl = QLabel("服务器:")
+        server_lbl.setStyleSheet("color: #64748b; font-size: 12px;")
+        row3.addWidget(server_lbl)
+
+        self.server_input = QLineEdit("172.19.0.5")
+        self.server_input.setPlaceholderText("默认: 172.19.0.5")
+        self.server_input.setMinimumHeight(28)
+        row3.addWidget(self.server_input)
+
+        opt_layout.addLayout(row3)
+        root.addWidget(opt_card)
+
+        # ============================================================== #
+        #  Action Buttons (Login & Stop)
+        # ============================================================== #
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(12)
+        btn_layout.setSpacing(10)
 
-        self.login_btn = QPushButton("登 录")
+        self.login_btn = QPushButton("一 键 登 录")
         self.login_btn.setObjectName("login_btn")
-        self.login_btn.setMinimumHeight(40)
-        self.login_btn.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
+        self.login_btn.setMinimumHeight(38)
         self.login_btn.setCursor(Qt.PointingHandCursor)
         self.login_btn.clicked.connect(self._on_login)
-        btn_layout.addWidget(self.login_btn)
+        btn_layout.addWidget(self.login_btn, 3)
 
-        self.stop_btn = QPushButton("停 止")
+        self.stop_btn = QPushButton("停止重连")
         self.stop_btn.setObjectName("stop_btn")
-        self.stop_btn.setMinimumHeight(40)
-        self.stop_btn.setFont(QFont("Microsoft YaHei", 11))
+        self.stop_btn.setMinimumHeight(38)
         self.stop_btn.setCursor(Qt.PointingHandCursor)
         self.stop_btn.setEnabled(False)
         self.stop_btn.clicked.connect(self._on_stop)
-        btn_layout.addWidget(self.stop_btn)
+        btn_layout.addWidget(self.stop_btn, 1)
 
         root.addLayout(btn_layout)
 
-        # ---------- Log area ----------
+        # ============================================================== #
+        #  Card 3: 运行日志 (Logs Card - 弹性伸缩)
+        # ============================================================== #
+        log_card = QFrame()
+        log_card.setProperty("class", "CardFrame")
+        log_layout = QVBoxLayout(log_card)
+        log_layout.setContentsMargins(12, 10, 12, 10)
+        log_layout.setSpacing(6)
+
+        # Log Header
         log_header = QHBoxLayout()
-        log_label = QLabel("运行日志")
-        log_label.setFont(QFont("Microsoft YaHei", 10, QFont.Bold))
-        log_header.addWidget(log_label)
+        log_header.setSpacing(6)
+
+        log_title = QLabel("运行控制台")
+        log_title.setProperty("class", "CardTitle")
+        log_header.addWidget(log_title)
+
         log_header.addStretch()
+
+        copy_btn = QPushButton("复制")
+        copy_btn.setProperty("class", "SmallToolBtn")
+        copy_btn.setCursor(Qt.PointingHandCursor)
+        copy_btn.clicked.connect(self._copy_log)
+        log_header.addWidget(copy_btn)
+
         clear_btn = QPushButton("清空")
-        clear_btn.setObjectName("clear_btn")
-        clear_btn.setFixedSize(50, 24)
+        clear_btn.setProperty("class", "SmallToolBtn")
         clear_btn.setCursor(Qt.PointingHandCursor)
         clear_btn.clicked.connect(lambda: self.log_text.clear())
         log_header.addWidget(clear_btn)
-        root.addLayout(log_header)
 
+        log_layout.addLayout(log_header)
+
+        # Text Console
         self.log_text = QTextEdit()
+        self.log_text.setObjectName("log_text")
         self.log_text.setReadOnly(True)
-        self.log_text.setFont(QFont("Consolas", 9))
-        self.log_text.setMinimumHeight(150)
-        root.addWidget(self.log_text)
+        self.log_text.setMinimumHeight(110)
+        self.log_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        log_layout.addWidget(self.log_text)
 
-        # ---------- Status bar ----------
-        self.status_label = QLabel("状态: 未连接")
-        self.status_label.setStyleSheet(
-            "color: #666; font-size: 12px; padding: 4px 0;"
-        )
-        root.addWidget(self.status_label)
+        # Add log card to root layout with stretch factor 1 so it expands with window resize
+        root.addWidget(log_card, 1)
 
-        # Allow pressing Enter in password field to trigger login
+        # Enter in password triggers login
         self.password_input.returnPressed.connect(self._on_login)
+        self.username_input.returnPressed.connect(lambda: self.password_input.setFocus())
+
+    def _create_form_label(self, text):
+        lbl = QLabel(text)
+        lbl.setProperty("class", "FormLabel")
+        lbl.setMinimumWidth(50)
+        return lbl
+
+    def _toggle_password_visibility(self, checked):
+        if checked:
+            self.password_input.setEchoMode(QLineEdit.Normal)
+            self.pwd_toggle_btn.setText("隐藏")
+        else:
+            self.password_input.setEchoMode(QLineEdit.Password)
+            self.pwd_toggle_btn.setText("显示")
+
+    def _on_auto_reconnect_toggled(self, checked):
+        self.interval_spin.setEnabled(checked)
+        self.sec_lbl.setEnabled(checked)
+
+    def _copy_log(self):
+        text = self.log_text.toPlainText()
+        if text:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self._log("已复制日志到剪贴板")
 
     # ------------------------------------------------------------------ #
     #  System Tray
     # ------------------------------------------------------------------ #
 
     def _init_tray_icon(self):
-        self.tray_icon = QSystemTrayIcon(QIcon(ICON_PATH), self)
+        if os.path.isfile(ICON_PATH):
+            self.tray_icon = QSystemTrayIcon(QIcon(ICON_PATH), self)
+        else:
+            self.tray_icon = QSystemTrayIcon(self.windowIcon(), self)
         self.tray_icon.setToolTip("SZTU 校园网登录助手")
 
         tray_menu = QMenu()
@@ -423,7 +705,7 @@ class MainWindow(QMainWindow):
         show_action.triggered.connect(self._show_window)
         tray_menu.addAction(show_action)
 
-        quit_action = QAction("退出", self)
+        quit_action = QAction("退出程序", self)
         quit_action.triggered.connect(self._quit_app)
         tray_menu.addAction(quit_action)
 
@@ -454,11 +736,36 @@ class MainWindow(QMainWindow):
         self.log_text.append(message)
         self.log_text.moveCursor(QTextCursor.End)
 
-    def _set_status(self, text, color="#666"):
-        self.status_label.setText(f"状态: {text}")
-        self.status_label.setStyleSheet(
-            f"color: {color}; font-size: 12px; padding: 4px 0;"
-        )
+    def _set_status_badge(self, state, text):
+        """
+        Update the visual status badge in the top right header.
+        state: 'connected' | 'connecting' | 'failed' | 'disconnected'
+        """
+        self.status_badge.setText(text)
+        if state == "connected":
+            self.status_badge.setStyleSheet("""
+                background-color: #ecfdf5;
+                color: #059669;
+                border: 1px solid #a7f3d0;
+            """)
+        elif state == "connecting":
+            self.status_badge.setStyleSheet("""
+                background-color: #fffbeb;
+                color: #d97706;
+                border: 1px solid #fde68a;
+            """)
+        elif state == "failed":
+            self.status_badge.setStyleSheet("""
+                background-color: #fef2f2;
+                color: #dc2626;
+                border: 1px solid #fecaca;
+            """)
+        else:  # disconnected
+            self.status_badge.setStyleSheet("""
+                background-color: #f1f5f9;
+                color: #64748b;
+                border: 1px solid #cbd5e1;
+            """)
 
     # ------------------------------------------------------------------ #
     #  Login
@@ -477,17 +784,20 @@ class MainWindow(QMainWindow):
 
         suffix = ISP_OPTIONS[self.isp_combo.currentIndex()][1]
         server_ip = self.server_input.text().strip()
+        if not server_ip:
+            server_ip = "172.19.0.5"
 
         if self.remember_cb.isChecked():
             self._save_config()
 
         self._login_in_progress = True
         self.login_btn.setEnabled(False)
-        self._set_status("正在登录...", "#e67e00")
+        self.login_btn.setText("正在登录...")
+        self._set_status_badge("connecting", "◐ 正在登录...")
 
         ts = time.strftime("%H:%M:%S")
-        self._log(f"{'=' * 44}")
-        self._log(f"[{ts}] 开始登录 {username}{suffix}")
+        self._log(f"\n{'=' * 36}")
+        self._log(f"[{ts}] 开始登录: {username}{suffix}")
 
         self.login_worker = LoginWorker(username, password, suffix, server_ip)
         self.login_worker.log_signal.connect(self._log)
@@ -497,17 +807,18 @@ class MainWindow(QMainWindow):
     def _on_login_result(self, success, message):
         self._login_in_progress = False
         self.login_btn.setEnabled(True)
+        self.login_btn.setText("一 键 登 录")
 
         ts = time.strftime("%H:%M:%S")
         if success:
             self.is_connected = True
-            self._set_status("已连接", "green")
+            self._set_status_badge("connected", "● 已连接")
             self._log(f"[{ts}] [OK] {message}")
             if self.auto_reconnect_cb.isChecked():
                 self._start_auto_reconnect()
         else:
             self.is_connected = False
-            self._set_status("连接失败", "red")
+            self._set_status_badge("failed", "● 连接失败")
             self._log(f"[{ts}] [FAIL] {message}")
 
     # ------------------------------------------------------------------ #
@@ -542,18 +853,18 @@ class MainWindow(QMainWindow):
     def _on_ping_result(self, connected):
         ts = time.strftime("%H:%M:%S")
         if not connected:
-            self._log(f"[{ts}] 检测到网络断开，正在重连...")
-            self._set_status("正在重连...", "#e67e00")
+            self._log(f"[{ts}] 检测到网络断开，正在自动重连...")
+            self._set_status_badge("connecting", "◐ 正在重连...")
             self._on_login()
         else:
-            self._log(f"[{ts}] 网络正常")
+            self._log(f"[{ts}] 网络检测正常")
 
     def _on_stop(self):
         self._stop_auto_reconnect()
         self.is_connected = False
         self.login_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        self._set_status("已停止", "#666")
+        self._set_status_badge("disconnected", "● 已停止重连")
         self._log(f"[{time.strftime('%H:%M:%S')}] 已停止自动重连")
 
     # ------------------------------------------------------------------ #
@@ -598,7 +909,10 @@ class MainWindow(QMainWindow):
             self.password_input.setText(cfg.get("password", ""))
             self.isp_combo.setCurrentIndex(cfg.get("isp_index", 0))
             self.server_input.setText(cfg.get("server_ip", "172.19.0.5"))
-            self.auto_reconnect_cb.setChecked(cfg.get("auto_reconnect", False))
+            auto_rec = cfg.get("auto_reconnect", False)
+            self.auto_reconnect_cb.setChecked(auto_rec)
+            self.interval_spin.setEnabled(auto_rec)
+            self.sec_lbl.setEnabled(auto_rec)
             self.interval_spin.setValue(cfg.get("interval", 300))
         except Exception:
             pass
@@ -621,9 +935,16 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    # 2. 启用 High-DPI 缩放属性
+    if hasattr(Qt, "AA_EnableHighDpiScaling"):
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    if hasattr(Qt, "AA_UseHighDpiPixmaps"):
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     app = QApplication(sys.argv)
-    app.setFont(QFont("Microsoft YaHei", 10))
-    app.setWindowIcon(QIcon(ICON_PATH))
+    app.setFont(QFont("Microsoft YaHei UI", 10))
+    if os.path.isfile(ICON_PATH):
+        app.setWindowIcon(QIcon(ICON_PATH))
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
