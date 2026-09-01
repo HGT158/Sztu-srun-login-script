@@ -369,8 +369,8 @@ QTextEdit#log_text {
 
 /* 状态胶囊徽标基础 */
 QLabel.StatusBadge {
-    border-radius: 11px;
-    padding: 2px 9px;
+    border-radius: 10px;
+    padding: 4px 9px;
     font-size: 12px;
     font-weight: 600;
 }
